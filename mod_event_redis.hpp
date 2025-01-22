@@ -11,6 +11,7 @@ namespace mod_event_redis {
 		char *password;
 		char *sentinals;
 		char *topic_prefix;
+		char *event_filter; 
 	} globals;
 
 	SWITCH_MODULE_LOAD_FUNCTION(mod_event_redis_load);
