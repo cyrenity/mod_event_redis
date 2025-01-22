@@ -76,6 +76,8 @@ namespace mod_event_redis {
                             "localhost:xxxx", NULL, "hostname", "Redis Sentinals"),
         SWITCH_CONFIG_ITEM("topic-prefix", SWITCH_CONFIG_STRING, CONFIG_RELOADABLE, &globals.topic_prefix,
                             "fs", NULL, "topic-prefix", "Topic Prefix"),
+        SWITCH_CONFIG_ITEM("event-filter", SWITCH_CONFIG_STRING, CONFIG_RELOADABLE, &globals.event_filter,
+                            "SWITCH_EVENT_ALL", NULL, "event-filter", "Comma separated list of events to subscribe to"),
         SWITCH_CONFIG_ITEM_END()
     };
 
@@ -169,7 +171,7 @@ namespace mod_event_redis {
 
         void PublishEvent(switch_event_t *event) {
 
-            char *event_json = (char*)malloc(sizeof(char));
+	    char *event_json = nullptr;
             switch_event_serialize_json(event, &event_json);
             std::string event_json_str(event_json);
 
@@ -180,7 +182,7 @@ namespace mod_event_redis {
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "%s\n", event_json );
             }
             //delete uuid;
-            delete event_json;
+            free(event_json);
         }
 
         void Shutdown(){
@@ -220,13 +222,19 @@ namespace mod_event_redis {
     
         public:
         RedisEventModule(switch_loadable_module_interface_t **module_interface, switch_memory_pool_t *pool): _publisher() {
-             
-            // Subscribe to all switch events of any subclass
-            // Store a pointer to ourself in the user data
-            if (switch_event_bind_removable(modname, SWITCH_EVENT_ALL, SWITCH_EVENT_SUBCLASS_ANY, event_handler,
-                                            static_cast<void*>(&_publisher), &_node)
-                != SWITCH_STATUS_SUCCESS) {
-                throw std::runtime_error("Couldn't bind to switch events.");
+            // Subscribe to events based on event-filter configuration
+            std::vector<std::string> events = split(std::string(globals.event_filter), ',');
+            for (const std::string& event : events) {
+                switch_event_types_t event_type;
+                if (switch_name_event(event.c_str(), &event_type) != SWITCH_STATUS_SUCCESS) {
+                    switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Invalid event type: %s\n", event.c_str());
+                    continue;
+                }
+                if (switch_event_bind_removable(modname, event_type, SWITCH_EVENT_SUBCLASS_ANY, event_handler,
+                                                static_cast<void*>(&_publisher), &_node)
+                    != SWITCH_STATUS_SUCCESS) {
+                    throw std::runtime_error("Couldn't bind to switch events.");
+                }
             }
             switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "Subscribed to events\n");
 
@@ -256,7 +264,7 @@ namespace mod_event_redis {
             try {
                 RedisEventPublisher *publisher = static_cast<RedisEventPublisher*>(event->bind_user_data);
                 publisher->PublishEvent(event);
-            } catch (std::exception ex) {
+            } catch (const std::exception& ex) {
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "Error publishing event via Redis: %s\n",
                                   ex.what());
             } catch (...) { // Exceptions must not propogate to C caller
@@ -305,3 +313,4 @@ namespace mod_event_redis {
     }
 
 }
+
