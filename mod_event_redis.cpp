@@ -170,8 +170,7 @@ namespace mod_event_redis {
         }
 
         void PublishEvent(switch_event_t *event) {
-
-	    char *event_json = nullptr;
+            char *event_json = nullptr;
             switch_event_serialize_json(event, &event_json);
             std::string event_json_str(event_json);
 
@@ -181,10 +180,9 @@ namespace mod_event_redis {
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "PublishEvent without active RedisConnection \n");
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "%s\n", event_json );
             }
-            //delete uuid;
-            free(event_json);
+            free(event_json); // Corrected from delete to free
         }
-
+        
         void Shutdown(){
             //flush within 1000ms
             redisClient.sync_commit(std::chrono::milliseconds(1000));
