@@ -130,11 +130,11 @@ namespace mod_event_redis {
             switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "RedisEventPublisher Topic : %s", topic_str.c_str());
 
             try {
-                auto connect_callback = [this](const std::string& host, std::size_t port, cpp_redis::client::connect_state status) {
-                    if (status == cpp_redis::client::connect_state::ok) {
+                auto connect_callback = [this](const std::string& host, std::size_t port, cpp_redis::connect_state status) {
+                    if (status == cpp_redis::connect_state::ok) {
                         switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "client connection ok to %s:%zu  \n", host.c_str(), port);
                         _initialized = 1;
-                    } else if (status == cpp_redis::client::connect_state::dropped) {
+                    } else if (status == cpp_redis::connect_state::dropped) {
                         switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "client disconnected from %s:%zu  \n", host.c_str(), port);
                         _initialized = 0;
                     }
